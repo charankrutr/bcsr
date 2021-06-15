@@ -1,74 +1,143 @@
 // "static void main" must be defined in a public class.
-    
-    class BCSRMat {
-        
-        int [] blockRowPtr;
-        Value val; //?
-        int [] cols;
-        static int b; // block size
-        int nb; // num of blocks
-        int nnzb;
-        
-        static void print() {
-            for (int i=0; i<temp.length; i++) {
-                for (int j=0; j<temp[0].length; j++) {
-                    System.out.print(temp[i][j] + "\t");
-                }
-                System.out.println();
-            }
-        }
-        
-        public BCSRMat(int b) {
-            this.b = b;
-        }
-        
-        void convertToBcsr(int [][] mat) {
-        }
-        
-        static int [][] temp; 
-        static void resetTemp() {
-            temp = new int [b][b];
-        }
-        
+class Value {
+    int [][] val;
+    // {{1,2,3,4},{2,3,4,5}}
+    int[][] size;
+    // {{2,2} {2,2}  {2,1}}
+    int valLen;
 
-        static boolean isNonZeroBlock(int [][] mat, int rs, int cs) {
-            resetTemp();
-            System.out.println(">> " + (rs+b));
-            int nnz = 0;
-            for (int i=rs, r=0; i<Math.min(rs+b, mat.length); i++, r++) {
-                for (int j=cs, c=0; j<Math.min(cs+b, mat[0].length); j++, c++) {
-                    //System.out.println("i =" +  i + " j=" + j);
-                    //System.out.println("r =" +  r + " c=" + c);
-                    temp[r][c] = mat[i][j];
-                    if (mat[i][j] != 0)
-                        nnz++;
-                }
-            }
-            return nnz != 0;
-        }
+    public Value(int b, int nnzb) {
+        // TODO: optimize b*b to appropirate size of the array during edge case.
+        valLen = 0;
+        //System.out.println("----" + nnzb);
+        val = new int [nnzb][b*b];
+        size = new int [nnzb][b*b];
     }
+}
 
     
-    class Value {
-        ArrayList<int [][]> val;
-        // {  {1,2}  {2,3}  {1}
-        //    {3,4}  {4,4}  {1}}
-        List<int[]> size;
-        // {{2,2} {2,2}  {2,1}}
+class BCSRMat {
+
+    int [][] mat;
+    int [] blockRowPtr;
+    Value val;
+    int [] cols;
+    int b; // block size
+    int nb; // num of blocks
+    int nnzb;
+
+
+    public BCSRMat(int [][] mat, int b) {
+        this.mat = mat;
+        this.b = b;
+        nb = mat.length/b;
+        populateNNZB(mat);
+        val = new Value(b, nnzb);
+        init(mat);
+        populateBlockRowPtr(mat);
+        int [] cols = new int [nnzb];
     }
+
+    void init(int [][] mat) {
+        for (int i=0; i<mat.length; i+=b) {
+            for (int j=0; j<mat[0].length; j+=b) {
+                if (isNonZeroBlock(i, j)) {
+                    populateTempInVal(b, b);
+                } 
+            }
+        }
+    }
+    
+    void populateBlockRowPtr(int [][] mat) {
+        blockRowPtr = new int [nb+1];
+        int count = 0;
+        int ind = 0;
+        boolean blockChange = true;
+        for (int i=0; i<mat.length; i+=b) {
+            for (int j=0; j<mat[0].length; j+=b) {
+                if (isNonZeroBlock(i, j)) {
+                    if (blockChange) {
+                        blockRowPtr[ind++] = count;
+                    }     
+                    count++;
+                    blockChange = false;
+                } 
+            }
+            blockChange = true;
+        }
+        blockRowPtr[ind] = count;
+    }    
+    
+    void populateNNZB(int [][] mat) {
+        int count = 0;
+        for (int i=0; i<mat.length; i+=b) {
+            for (int j=0; j<mat[0].length; j+=b) {
+                if (isNonZeroBlock(i, j)) {
+                    count++;
+                } 
+            }
+        }
+        nnzb = count;
+        System.out.println("nnzb: " + nnzb);  
+    }
+    void populateTempInVal(int rb, int cb) {
+        int ind = 0;
+        for (int i=0; i<rb; i++) {
+            for (int j=0; j<cb; j++) {
+                val.val[val.valLen][ind++] = temp[i][j]; 
+            }
+        }
+        val.valLen++;
+    }
+
+    void print() {
+        // // temp
+        // for (int i=0; i<temp.length; i++) {
+        //     for (int j=0; j<temp[0].length; j++) {
+        //         System.out.print(temp[i][j] + "\t");
+        //     }
+        //     System.out.println();
+        // }
+        // // values
+        // for (int i=0; i<val.val.length; i++) {
+        //     System.out.println(Arrays.toString(val.val[i]));
+        // }
+        // block row ptr
+        System.out.println(Arrays.toString(blockRowPtr));
+    }
+
+    void convertToBcsr(int [][] mat) {
+    }
+
+    int [][] temp; 
+    void resetTemp() {
+        temp = new int [b][b];
+    }
+
+
+    boolean isNonZeroBlock(int rs, int cs) {
+        resetTemp();
+        int nnz = 0;
+        for (int i=rs, r=0; i<Math.min(rs+b, mat.length); i++, r++) {
+            for (int j=cs, c=0; j<Math.min(cs+b, mat[0].length); j++, c++) {
+                temp[r][c] = mat[i][j];
+                if (mat[i][j] != 0)
+                    nnz++;
+            }
+        }
+        return nnz != 0;
+    }
+}
 
 public class Main {
     public static void main(String[] args) {
         System.out.println("Hello World!");
-        int [][] mat = {{11, 0, 0, 14}, 
-                        {0, 22, 0, 0},
-                        {0, 0, 33, 34},
-                        {41, 0, 43, 44}};
-        // enc(mat);
-        // System.out.println();
-        // dec();
-        BCSRMat bcsrMat = new BCSRMat(2);
-        System.out.println(bcsrMat.isNonZeroBlock(mat, 3, 3));
+        int [][] mat = {{0, 0, 0, 0, 1}, 
+                        {0, 0, 0, 0, 0},
+                        {0, 0, 0, 0, 0},
+                        {41, 0, 0, 0, 0}};
+        BCSRMat bcsrMat = new BCSRMat(mat, 2);
+        //System.out.println(bcsrMat.isNonZeroBlock(3, 3));
         bcsrMat.print();
         //convert(mat);
     }
