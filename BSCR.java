@@ -25,6 +25,8 @@ class BCSRMat {
     int b; // block size
     int nb; // num of blocks
     int nnzb;
+    int [][] temp; 
+    int [] tmpSize;
 
 
     public BCSRMat(int [][] mat, int b) {
@@ -35,14 +37,18 @@ class BCSRMat {
         val = new Value(b, nnzb);
         init(mat);
         populateBlockRowPtr(mat);
-        int [] cols = new int [nnzb];
     }
 
     void init(int [][] mat) {
+        cols = new int [nnzb];
         for (int i=0; i<mat.length; i+=b) {
             for (int j=0; j<mat[0].length; j+=b) {
+                //System.out.println(">>>>> i = " + i + " j= " + j);
                 if (isNonZeroBlock(i, j)) {
+                    //System.out.println("non-z: " + i + " " +  j);
                     populateTempInVal(b, b);
+                    cols[val.valLen] = j;
+                    val.valLen++;
                 } 
             }
         }
@@ -80,6 +86,7 @@ class BCSRMat {
         nnzb = count;
         System.out.println("nnzb: " + nnzb);  
     }
+
     void populateTempInVal(int rb, int cb) {
         int ind = 0;
         for (int i=0; i<rb; i++) {
@@ -87,7 +94,7 @@ class BCSRMat {
                 val.val[val.valLen][ind++] = temp[i][j]; 
             }
         }
-        val.valLen++;
+        val.size[val.valLen] = tmpSize;
     }
 
     void print() {
@@ -99,18 +106,28 @@ class BCSRMat {
         //     System.out.println();
         // }
         // // values
-        // for (int i=0; i<val.val.length; i++) {
-        //     System.out.println(Arrays.toString(val.val[i]));
-        // }
+        //System.out.println(val.val.length);
+        System.out.println("Values: [");
+        for (int i=0; i<val.val.length; i++) {
+            System.out.print("index i=" + i);
+            System.out.print(" vals: " + Arrays.toString(val.val[i]));
+            System.out.print(" size: " + Arrays.toString(val.size[i]));
+            System.out.println(", ");
+            //System.out.println("----");
+        }
+        System.out.println("]");
         // block row ptr
+        System.out.println("block row ptr: ");
         System.out.println(Arrays.toString(blockRowPtr));
+        // Cols
+        System.out.println(Arrays.toString(cols));
     }
 
     void convertToBcsr(int [][] mat) {
     }
 
-    int [][] temp; 
     void resetTemp() {
+        tmpSize = new int [2];
         temp = new int [b][b];
     }
 
@@ -118,13 +135,22 @@ class BCSRMat {
     boolean isNonZeroBlock(int rs, int cs) {
         resetTemp();
         int nnz = 0;
+        int imax = 0, jmax = 0;
+        //int i = rs, j = cs;
+        //System.out.println("++++rs=" + rs + " cs=" + cs);
         for (int i=rs, r=0; i<Math.min(rs+b, mat.length); i++, r++) {
             for (int j=cs, c=0; j<Math.min(cs+b, mat[0].length); j++, c++) {
+                //System.out.println("====i=" + i + " j=" + j);
                 temp[r][c] = mat[i][j];
                 if (mat[i][j] != 0)
                     nnz++;
+                jmax = Math.max(jmax, j+1);
             }
+            imax = Math.max(imax, i+1);
         }
+        //System.out.println();
+        tmpSize[0] = imax-rs;
+        tmpSize[1] = jmax-cs;
         return nnz != 0;
     }
 }
@@ -132,10 +158,10 @@ class BCSRMat {
 public class Main {
     public static void main(String[] args) {
         System.out.println("Hello World!");
-        int [][] mat = {{0, 0, 0, 0, 1}, 
+        int [][] mat = {{0, 1, 0, 0, 1}, 
                         {0, 0, 0, 0, 0},
                         {0, 0, 0, 0, 0},
-                        {41, 0, 0, 0, 0}};
+                        {0, 0, 0, 1, 0}};
         BCSRMat bcsrMat = new BCSRMat(mat, 2);
         //System.out.println(bcsrMat.isNonZeroBlock(3, 3));
         bcsrMat.print();
